@@ -144,7 +144,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   const otherUser = !conversation?.isGroup ? conversation?.members.find(m => m.id !== mockUser.id) : null;
   
   const filteredMembers = React.useMemo(() => {
-    if (!conversation) return [];
+    if (!conversation || !conversation.isGroup) return [];
     return conversation.members
         .filter(member => member.id !== mockUser.id)
         .filter(member => member.name.toLowerCase().includes(mentionSearch.toLowerCase()));
@@ -317,31 +317,33 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
 
                     return (
                         <FormItem className="flex-1">
-                            <Popover open={mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Input
-                                            {...field}
-                                            ref={combinedRef}
-                                            onChange={(e) => {
-                                                field.onChange(e);
-                                                const value = e.target.value;
-                                                const cursorPosition = e.target.selectionStart ?? 0;
-                                                const textBeforeCursor = value.substring(0, cursorPosition);
-                                                const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-                                                if (mentionMatch) {
-                                                    setMentionPopoverOpen(true);
-                                                    setMentionSearch(mentionMatch[1] || "");
-                                                } else {
-                                                    setMentionPopoverOpen(false);
-                                                }
-                                            }}
-                                            placeholder="Type a message..."
-                                            className="bg-card/80 focus:bg-card"
-                                            autoComplete="off"
-                                        />
-                                    </FormControl>
-                                </PopoverTrigger>
+                            <Popover open={conversation.isGroup && mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
+                                <FormControl>
+                                    <Input
+                                        {...field}
+                                        ref={combinedRef}
+                                        onChange={(e) => {
+                                            field.onChange(e);
+                                            
+                                            if (!conversation.isGroup) return;
+
+                                            const value = e.target.value;
+                                            const cursorPosition = e.target.selectionStart ?? 0;
+                                            const textBeforeCursor = value.substring(0, cursorPosition);
+                                            const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+                                            
+                                            if (mentionMatch) {
+                                                setMentionPopoverOpen(true);
+                                                setMentionSearch(mentionMatch[1] || "");
+                                            } else {
+                                                setMentionPopoverOpen(false);
+                                            }
+                                        }}
+                                        placeholder="Type a message..."
+                                        className="bg-card/80 focus:bg-card"
+                                        autoComplete="off"
+                                    />
+                                </FormControl>
                                 <PopoverContent className="w-60 p-1" side="top" align="start">
                                     {filteredMembers.length > 0 ? (
                                         <ScrollArea className="h-fit max-h-48">
