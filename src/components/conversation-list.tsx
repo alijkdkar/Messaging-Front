@@ -17,6 +17,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { format, isToday, isYesterday } from "date-fns";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -30,6 +31,17 @@ const getInitials = (name: string) => {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
+};
+
+const formatTimestampForList = (timestamp?: Date) => {
+    if (!timestamp) return '';
+    if (isToday(timestamp)) {
+        return format(timestamp, 'p'); // e.g. "5:30 PM"
+    }
+    if (isYesterday(timestamp)) {
+        return 'Yesterday';
+    }
+    return format(timestamp, 'P'); // e.g. "10/25/2024"
 };
 
 function UserProfileSheet({ user }: { user: User }) {
@@ -212,7 +224,7 @@ export function ConversationList({
                   </p>
                 </div>
                 <div className="flex flex-col items-end self-start ml-2">
-                    <p className="text-xs text-muted-foreground mb-1 whitespace-nowrap">{lastMessage?.timestamp}</p>
+                    <p className="text-xs text-muted-foreground mb-1 whitespace-nowrap">{formatTimestampForList(lastMessage?.timestamp)}</p>
                     {isUnread ? (
                         <Badge variant={hasMention ? "default" : "secondary"} className={cn(
                             "w-5 h-5 flex items-center justify-center p-0",

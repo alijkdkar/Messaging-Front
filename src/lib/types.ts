@@ -1,4 +1,5 @@
 export type UserStatus = 'online' | 'offline' | 'in-call';
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
 
 export interface User {
   id: string;
@@ -12,9 +13,10 @@ export type MessageType = 'text' | 'image' | 'video' | 'voice' | 'file';
 export interface Message {
   id: string;
   text: string;
-  timestamp: string;
+  timestamp: Date;
   sender: User;
   isMe: boolean;
+  status?: MessageStatus;
   type?: MessageType;
   mediaUrl?: string;
   replyTo?: Message;
@@ -23,7 +25,7 @@ export interface Message {
   fileSize?: string; // for file messages
 }
 
-export type SendMessagePayload = Omit<Message, 'id' | 'timestamp' | 'sender' | 'isMe' | 'replyTo'>;
+export type SendMessagePayload = Omit<Message, 'id' | 'timestamp' | 'sender' | 'isMe' | 'replyTo' | 'status'>;
 
 
 export interface Conversation {

@@ -26,15 +26,14 @@ export default function Home() {
 
     const newMessage: Message = {
       id: `msg-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date(),
       sender: mockUser,
       isMe: true,
+      status: 'sending',
       ...message
     };
     
-    // Move conversation with new message to the top
-    const updatedConversations = conversations
-      .map((conv) => {
+    const newConversations = conversations.map((conv) => {
         if (conv.id === selectedConversationId) {
           return {
             ...conv,
@@ -42,21 +41,65 @@ export default function Home() {
           };
         }
         return conv;
-      })
-      .sort((a, b) => {
-        if (a.id === selectedConversationId) return -1;
-        if (b.id === selectedConversationId) return 1;
-        // You might want to sort by last message timestamp here for other conversations
-        const aLastMessage = a.messages[a.messages.length - 1];
-        const bLastMessage = b.messages[b.messages.length - 1];
-        // This is a simplified sort, a real app would parse timestamps
-        if (aLastMessage && bLastMessage) {
-            return bLastMessage.id > aLastMessage.id ? 1 : -1;
-        }
-        return 0;
       });
 
-    setConversations(updatedConversations);
+    const sortConversations = (convs: Conversation[]) => {
+      return [...convs].sort((a, b) => {
+        const aLastMessage = a.messages[a.messages.length - 1];
+        const bLastMessage = b.messages[b.messages.length - 1];
+        if (!aLastMessage) return 1;
+        if (!bLastMessage) return -1;
+        return bLastMessage.timestamp.getTime() - aLastMessage.timestamp.getTime();
+      });
+    };
+
+    setConversations(sortConversations(newConversations));
+
+    // Simulate status updates
+    setTimeout(() => {
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === selectedConversationId) {
+          return {
+            ...conv,
+            messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'sent' } : m)
+          };
+        }
+        return conv;
+      }));
+    }, 1000);
+
+    setTimeout(() => {
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === selectedConversationId) {
+          return {
+            ...conv,
+            messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'delivered' } : m)
+          };
+        }
+        return conv;
+      }));
+    }, 2500);
+
+    // Simulate 'seen' only if the user is currently viewing the conversation
+    setTimeout(() => {
+      setConversations(prev => {
+        const currentConv = prev.find(c => c.id === selectedConversationId);
+        // Assuming the other user reads it if we are in the chat.
+        // In a real app, this would come from a server event.
+        if (currentConv) {
+          return prev.map(conv => {
+            if (conv.id === selectedConversationId) {
+              return {
+                ...conv,
+                messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'seen' } : m)
+              };
+            }
+            return conv;
+          });
+        }
+        return prev;
+      });
+    }, 4000);
   };
 
   return (

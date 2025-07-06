@@ -5,19 +5,20 @@ import Image from "next/image";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Conversation, Message, SendMessagePayload } from "@/lib/types";
+import type { Conversation, Message, SendMessagePayload, MessageStatus } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { SendHorizonal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square } from "lucide-react";
+import { SendHorizonal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square, Clock, Check, CheckCheck } from "lucide-react";
 import { mockUser } from "@/lib/mock-data";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "./ui/scroll-area";
+import { format, isToday, isYesterday } from "date-fns";
 
 interface MessageViewProps {
   conversation?: Conversation;
@@ -27,6 +28,34 @@ interface MessageViewProps {
 const messageFormSchema = z.object({
   message: z.string().min(1, { message: "Message cannot be empty." }),
 });
+
+const formatTimestamp = (timestamp?: Date) => {
+    if (!timestamp) return '';
+    if (isToday(timestamp)) {
+        return format(timestamp, 'p'); // e.g., 5:30 PM
+    }
+    if (isYesterday(timestamp)) {
+        return 'Yesterday';
+    }
+    return format(timestamp, 'P'); // e.g., 10/25/2024
+};
+
+const MessageStatusIndicator = ({ status }: { status?: MessageStatus }) => {
+    if (!status) return null;
+
+    switch (status) {
+        case 'sending':
+            return <Clock className="w-4 h-4 text-muted-foreground" />;
+        case 'sent':
+            return <Check className="w-4 h-4 text-muted-foreground" />;
+        case 'delivered':
+            return <CheckCheck className="w-4 h-4 text-muted-foreground" />;
+        case 'seen':
+            return <CheckCheck className="w-4 h-4 text-primary" />;
+        default:
+            return null;
+    }
+};
 
 export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -318,32 +347,34 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
                     return (
                         <FormItem className="flex-1">
                             <Popover open={conversation.isGroup && mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
-                                <FormControl>
-                                    <Input
-                                        {...field}
-                                        ref={combinedRef}
-                                        onChange={(e) => {
-                                            field.onChange(e);
-                                            
-                                            if (!conversation.isGroup) return;
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            ref={combinedRef}
+                                            onChange={(e) => {
+                                                field.onChange(e);
+                                                
+                                                if (!conversation.isGroup) return;
 
-                                            const value = e.target.value;
-                                            const cursorPosition = e.target.selectionStart ?? 0;
-                                            const textBeforeCursor = value.substring(0, cursorPosition);
-                                            const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-                                            
-                                            if (mentionMatch) {
-                                                setMentionPopoverOpen(true);
-                                                setMentionSearch(mentionMatch[1] || "");
-                                            } else {
-                                                setMentionPopoverOpen(false);
-                                            }
-                                        }}
-                                        placeholder="Type a message..."
-                                        className="bg-card/80 focus:bg-card"
-                                        autoComplete="off"
-                                    />
-                                </FormControl>
+                                                const value = e.target.value;
+                                                const cursorPosition = e.target.selectionStart ?? 0;
+                                                const textBeforeCursor = value.substring(0, cursorPosition);
+                                                const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+                                                
+                                                if (mentionMatch) {
+                                                    setMentionPopoverOpen(true);
+                                                    setMentionSearch(mentionMatch[1] || "");
+                                                } else {
+                                                    setMentionPopoverOpen(false);
+                                                }
+                                            }}
+                                            placeholder="Type a message..."
+                                            className="bg-card/80 focus:bg-card"
+                                            autoComplete="off"
+                                        />
+                                    </FormControl>
+                                </PopoverTrigger>
                                 <PopoverContent className="w-60 p-1" side="top" align="start">
                                     {filteredMembers.length > 0 ? (
                                         <ScrollArea className="h-fit max-h-48">
@@ -525,6 +556,12 @@ function MessageBubble({ message }: { message: Message }) {
             {(!message.type || message.type === 'text') && message.text && (
                 <p className="leading-snug">{renderWithMentions(message.text)}</p>
             )}
+        </div>
+        <div className="flex items-center gap-1.5 px-2">
+            <span className="text-xs text-muted-foreground">
+                {formatTimestamp(message.timestamp)}
+            </span>
+            {message.isMe && <MessageStatusIndicator status={message.status} />}
         </div>
       </div>
     </div>
