@@ -317,9 +317,9 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
 
                     return (
                         <FormItem className="flex-1">
-                            <FormControl>
-                                <Popover open={mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
-                                    <PopoverTrigger asChild>
+                            <Popover open={mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
                                         <Input
                                             {...field}
                                             ref={combinedRef}
@@ -340,35 +340,35 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
                                             className="bg-card/80 focus:bg-card"
                                             autoComplete="off"
                                         />
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-60 p-1" side="top" align="start">
-                                        {filteredMembers.length > 0 ? (
-                                            <ScrollArea className="h-fit max-h-48">
-                                                <div className="flex flex-col gap-1 p-1">
-                                                    {filteredMembers.map(member => (
-                                                        <Button
-                                                            key={member.id}
-                                                            variant="ghost"
-                                                            className="w-full justify-start gap-2 p-2 h-auto"
-                                                            onClick={() => handleMentionSelect(member.name)}
-                                                        >
-                                                            <Avatar className="h-8 w-8">
-                                                                <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person" />
-                                                                <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-                                                            </Avatar>
-                                                            <span>{member.name}</span>
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                            </ScrollArea>
-                                        ) : (
-                                            <div className="p-2 text-center text-sm text-muted-foreground">
-                                                No one found.
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-60 p-1" side="top" align="start">
+                                    {filteredMembers.length > 0 ? (
+                                        <ScrollArea className="h-fit max-h-48">
+                                            <div className="flex flex-col gap-1 p-1">
+                                                {filteredMembers.map(member => (
+                                                    <Button
+                                                        key={member.id}
+                                                        variant="ghost"
+                                                        className="w-full justify-start gap-2 p-2 h-auto"
+                                                        onClick={() => handleMentionSelect(member.name)}
+                                                    >
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person" />
+                                                            <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                                                        </Avatar>
+                                                        <span>{member.name}</span>
+                                                    </Button>
+                                                ))}
                                             </div>
-                                        )}
-                                    </PopoverContent>
-                                </Popover>
-                            </FormControl>
+                                        </ScrollArea>
+                                    ) : (
+                                        <div className="p-2 text-center text-sm text-muted-foreground">
+                                            No one found.
+                                        </div>
+                                    )}
+                                </PopoverContent>
+                            </Popover>
                         </FormItem>
                     )
                 }}
