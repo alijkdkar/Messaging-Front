@@ -1,10 +1,13 @@
+import * as React from "react";
 import type { Conversation } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Bot, Users } from 'lucide-react';
+import { Bot, Users, Search } from 'lucide-react';
+import { mockUser } from "@/lib/mock-data";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -17,6 +20,8 @@ export function ConversationList({
   selectedConversationId,
   onSelectConversation,
 }: ConversationListProps) {
+  const [searchQuery, setSearchQuery] = React.useState("");
+
   const getInitials = (name: string) => {
     const names = name.split(' ');
     if (names.length > 1) {
@@ -24,24 +29,41 @@ export function ConversationList({
     }
     return name.substring(0, 2).toUpperCase();
   };
+
+  const filteredConversations = conversations.filter((conv) =>
+    conv.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   
   return (
     <aside className="w-full max-w-xs flex flex-col bg-card/50">
-      <header className="p-4 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <header className="p-4 border-b border-border">
+        <div className="flex items-center gap-2 mb-4">
             <Bot className="w-7 h-7 text-primary" />
             <h1 className="text-xl font-bold">
             WhisperNet
             </h1>
         </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search or start new chat"
+            className="pl-9 bg-card"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </header>
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {conversations.map((conv) => {
+          {filteredConversations.map((conv) => {
             const lastMessage = conv.messages[conv.messages.length - 1];
+            const hasMention = conv.unreadCount && conv.unreadCount > 0 && conv.messages.some(m => !m.isMe && m.text.includes(`@${mockUser.name}`));
+            
             let lastMessageText = "No messages yet";
 
-            if (lastMessage) {
+            if (hasMention) {
+                lastMessageText = "You were mentioned";
+            } else if (lastMessage) {
                 const prefix = lastMessage.isMe ? "You: " : "";
                 switch (lastMessage.type) {
                     case 'image':
@@ -55,6 +77,7 @@ export function ConversationList({
                         break;
                 }
             }
+            
             return (
               <Button
                 key={conv.id}
@@ -74,7 +97,10 @@ export function ConversationList({
                 </Avatar>
                 <div className="flex-1 truncate">
                   <p className="font-semibold">{conv.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">
+                  <p className={cn(
+                    "text-sm truncate", 
+                    hasMention ? "font-semibold text-primary" : "text-muted-foreground"
+                  )}>
                     {lastMessageText}
                   </p>
                 </div>
