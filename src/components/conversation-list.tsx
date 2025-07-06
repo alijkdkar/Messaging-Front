@@ -141,7 +141,8 @@ export function ConversationList({
           {filteredConversations.map((conv) => {
             const lastMessage = conv.messages[conv.messages.length - 1];
             const isUnread = !!conv.unreadCount && conv.unreadCount > 0;
-            const hasMention = isUnread && conv.messages.some(m => !m.isMe && m.text.includes(`@${mockUser.name}`));
+            const hasMention = isUnread && conv.messages.slice(-conv.unreadCount).some(m => !m.isMe && m.text.includes(`@${mockUser.name}`));
+
             
             let lastMessageText = "No messages yet";
 
@@ -155,6 +156,12 @@ export function ConversationList({
                         break;
                     case 'video':
                         lastMessageText = `${prefix}${lastMessage.text || 'Video'}`;
+                        break;
+                    case 'voice':
+                        lastMessageText = `${prefix}Voice Message`;
+                        break;
+                    case 'file':
+                        lastMessageText = `${prefix}${lastMessage.fileName || 'File'}`;
                         break;
                     default:
                         lastMessageText = `${prefix}${lastMessage.text}`;
@@ -198,8 +205,8 @@ export function ConversationList({
                   </p>
                   <p className={cn(
                     "text-sm truncate",
-                    isUnread ? "text-foreground" : "text-muted-foreground",
-                    hasMention && "font-semibold text-primary"
+                    isUnread ? "text-foreground font-semibold" : "text-muted-foreground",
+                    hasMention && "text-primary font-bold"
                   )}>
                     {lastMessageText}
                   </p>
@@ -207,8 +214,11 @@ export function ConversationList({
                 <div className="flex flex-col items-end self-start ml-2">
                     <p className="text-xs text-muted-foreground mb-1 whitespace-nowrap">{lastMessage?.timestamp}</p>
                     {isUnread ? (
-                        <Badge variant="default" className="w-5 h-5 flex items-center justify-center p-0 bg-primary text-primary-foreground">
-                            {conv.unreadCount}
+                        <Badge variant={hasMention ? "default" : "secondary"} className={cn(
+                            "w-5 h-5 flex items-center justify-center p-0",
+                            hasMention && "bg-primary text-primary-foreground"
+                        )}>
+                            {hasMention ? '@' : conv.unreadCount}
                         </Badge>
                     ) : <div className="w-5 h-5"/>}
                 </div>

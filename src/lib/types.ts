@@ -7,7 +7,7 @@ export interface User {
   status?: UserStatus;
 }
 
-export type MessageType = 'text' | 'image' | 'video';
+export type MessageType = 'text' | 'image' | 'video' | 'voice' | 'file';
 
 export interface Message {
   id: string;
@@ -18,10 +18,13 @@ export interface Message {
   type?: MessageType;
   mediaUrl?: string;
   replyTo?: Message;
+  duration?: string; // for voice messages
+  fileName?: string; // for file messages
+  fileSize?: string; // for file messages
 }
 
 export interface Conversation {
-  id: string;
+  id:string;
   name:string;
   avatarUrl: string;
   messages: Message[];

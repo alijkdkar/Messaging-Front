@@ -31,8 +31,9 @@ export const mockConversations: Conversation[] = [
       { id: 'msg-1-3', text: "Same here. It's coming along nicely. Hey @You, what do you think?", timestamp: '10:01 AM', sender: alice, isMe: false, type: 'text' },
       { id: 'msg-1-4', text: "Cool, here is the design.", timestamp: '10:05 AM', sender: alice, isMe: false, type: 'image', mediaUrl: 'https://placehold.co/400x300.png' },
       { id: 'msg-1-5', text: "And a quick demo of the animation.", timestamp: '10:08 AM', sender: mockUser, isMe: true, type: 'video', mediaUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+      { id: 'msg-1-6', text: '', timestamp: '10:10 AM', sender: alice, isMe: false, type: 'voice', mediaUrl: 'https://www.w3schools.com/html/horse.mp3', duration: '0:04' },
     ],
-    unreadCount: 2,
+    unreadCount: 3,
   },
   {
     id: 'conv-2',
@@ -43,6 +44,7 @@ export const mockConversations: Conversation[] = [
     messages: [
       { id: 'msg-2-1', text: "Here are the latest mockups for the new feature.", timestamp: '9:45 AM', sender: bob, isMe: false, type: 'text' },
       { id: 'msg-2-2', text: "Thanks, Bob! These look great. I have a few minor suggestions.", timestamp: '9:50 AM', sender: mockUser, isMe: true, type: 'text' },
+      { id: 'msg-2-3', text: 'Here is the spec document.', timestamp: '9:52 AM', sender: bob, isMe: false, type: 'file', mediaUrl: '#', fileName: 'specs_v2.pdf', fileSize: '2.3 MB' },
     ],
     unreadCount: 0,
   },
