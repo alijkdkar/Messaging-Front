@@ -1,7 +1,10 @@
+export type UserStatus = 'online' | 'offline' | 'in-call';
+
 export interface User {
   id: string;
   name: string;
   avatarUrl?: string;
+  status?: UserStatus;
 }
 
 export type MessageType = 'text' | 'image' | 'video';
@@ -23,4 +26,6 @@ export interface Conversation {
   avatarUrl: string;
   messages: Message[];
   unreadCount?: number;
+  members: User[];
+  isGroup?: boolean;
 }

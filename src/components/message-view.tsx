@@ -12,6 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { SendHorizonal, Phone, Video, Info, Users, Reply } from "lucide-react";
+import { mockUser } from "@/lib/mock-data";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface MessageViewProps {
   conversation?: Conversation;
@@ -57,6 +60,8 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
     form.reset();
   }
 
+  const otherUser = !conversation?.isGroup ? conversation?.members.find(m => m.id !== mockUser.id) : null;
+
   if (!conversation) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
@@ -72,13 +77,56 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   return (
     <div className="flex flex-col h-full bg-background">
       <header className="flex items-center p-3 border-b border-border shrink-0">
-        <Avatar className="h-10 w-10 mr-3">
-          <AvatarImage src={conversation.avatarUrl} alt={conversation.name} data-ai-hint="person face" />
-          <AvatarFallback className="bg-primary/20 text-primary font-bold">
-            {conversation.name.includes(' ') ? getInitials(conversation.name) : <Users size={20} />}
-          </AvatarFallback>
-        </Avatar>
-        <h2 className="text-lg font-semibold flex-1">{conversation.name}</h2>
+        {conversation.isGroup ? (
+          <div className="flex items-center gap-3 flex-1">
+            <div className="flex -space-x-3 overflow-hidden">
+              <TooltipProvider delayDuration={0}>
+                {conversation.members.slice(0, 10).map((member) => (
+                  <Tooltip key={member.id}>
+                    <TooltipTrigger asChild>
+                      <div className="relative">
+                        <Avatar className="h-10 w-10 border-2 border-background">
+                          <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person" />
+                          <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                        </Avatar>
+                        <span className={cn(
+                            "absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-background",
+                            member.status === 'online' && 'bg-green-500',
+                            member.status === 'offline' && 'bg-gray-500',
+                            member.status === 'in-call' && 'bg-red-500'
+                        )} />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{member.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
+            </div>
+            <h2 className="text-lg font-semibold">{conversation.name}</h2>
+          </div>
+        ) : (
+          <>
+            <div className="relative mr-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={conversation.avatarUrl} alt={conversation.name} data-ai-hint="person face" />
+                <AvatarFallback className="bg-primary/20 text-primary font-bold">
+                  {getInitials(conversation.name)}
+                </AvatarFallback>
+              </Avatar>
+              {otherUser && (
+                  <span className={cn(
+                      "absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-card",
+                      otherUser.status === 'online' && 'bg-green-500',
+                      otherUser.status === 'offline' && 'bg-gray-500',
+                      otherUser.status === 'in-call' && 'bg-red-500'
+                  )} />
+              )}
+            </div>
+            <h2 className="text-lg font-semibold flex-1">{conversation.name}</h2>
+          </>
+        )}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><Phone className="w-5 h-5" /></Button>
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"><Video className="w-5 h-5" /></Button>
