@@ -515,7 +515,7 @@ function MessageBubble({ message }: { message: Message }) {
         {isGroupMessage && <p className="text-xs text-muted-foreground px-2">{message.sender.name}</p>}
         
         {message.replyTo && (
-            <div className="bg-card/70 border-l-2 border-primary pl-2 pr-3 py-1.5 rounded-md text-sm w-full opacity-80 mb-1 max-w-full">
+            <div className="bg-secondary border-l-2 border-primary pl-2 pr-3 py-1.5 rounded-md text-sm w-full mb-1 max-w-full">
                 <div className="flex items-center gap-1.5">
                     <Reply className="w-3.5 h-3.5 text-primary" />
                     <p className="font-semibold text-xs text-primary">{message.replyTo.sender.name}</p>
@@ -529,7 +529,7 @@ function MessageBubble({ message }: { message: Message }) {
             "rounded-2xl text-sm",
             message.isMe
                 ? "bg-primary text-primary-foreground rounded-br-lg"
-                : "bg-card rounded-bl-lg",
+                : "bg-secondary rounded-bl-lg",
             (!message.type || message.type === 'text') ? "p-3" : "p-1.5"
             )}
         >
@@ -642,3 +642,5 @@ const AudioPlayerPreview = ({ url }: { url: string }) => {
         </div>
     );
 };
+
+    
