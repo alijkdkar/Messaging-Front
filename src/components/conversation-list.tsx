@@ -19,8 +19,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { format, isToday, isYesterday } from "date-fns";
 import { useTheme } from "next-themes";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -116,20 +121,16 @@ function UserProfileSheet({ user }: { user: User }) {
            <Separator className="my-6" />
            <div className="space-y-4">
             <h3 className="font-semibold text-lg">Theme</h3>
-            <RadioGroup value={theme} onValueChange={setTheme} className="space-y-2">
-                <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="light" id="light" />
-                    <Label htmlFor="light">Light</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="dark" id="dark" />
-                    <Label htmlFor="dark">Dark</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="system" id="system" />
-                    <Label htmlFor="system">System</Label>
-                </div>
-            </RadioGroup>
+            <Select value={theme} onValueChange={setTheme}>
+                <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a theme" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                </SelectContent>
+            </Select>
            </div>
         </div>
       </SheetContent>
