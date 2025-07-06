@@ -140,7 +140,8 @@ export function ConversationList({
         <div className="p-2">
           {filteredConversations.map((conv) => {
             const lastMessage = conv.messages[conv.messages.length - 1];
-            const hasMention = conv.unreadCount && conv.unreadCount > 0 && conv.messages.some(m => !m.isMe && m.text.includes(`@${mockUser.name}`));
+            const isUnread = !!conv.unreadCount && conv.unreadCount > 0;
+            const hasMention = isUnread && conv.messages.some(m => !m.isMe && m.text.includes(`@${mockUser.name}`));
             
             let lastMessageText = "No messages yet";
 
@@ -192,17 +193,20 @@ export function ConversationList({
                 </div>
 
                 <div className="flex-1 truncate">
-                  <p className="font-semibold">{conv.name}</p>
+                  <p className={cn("font-semibold", isUnread && "font-bold")}>
+                    {conv.name}
+                  </p>
                   <p className={cn(
-                    "text-sm truncate", 
-                    hasMention ? "font-semibold text-primary" : "text-muted-foreground"
+                    "text-sm truncate",
+                    isUnread ? "text-foreground" : "text-muted-foreground",
+                    hasMention && "font-semibold text-primary"
                   )}>
                     {lastMessageText}
                   </p>
                 </div>
                 <div className="flex flex-col items-end self-start ml-2">
                     <p className="text-xs text-muted-foreground mb-1 whitespace-nowrap">{lastMessage?.timestamp}</p>
-                    {conv.unreadCount && conv.unreadCount > 0 ? (
+                    {isUnread ? (
                         <Badge variant="default" className="w-5 h-5 flex items-center justify-center p-0 bg-primary text-primary-foreground">
                             {conv.unreadCount}
                         </Badge>
