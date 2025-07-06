@@ -23,6 +23,9 @@ export interface Message {
   fileSize?: string; // for file messages
 }
 
+export type SendMessagePayload = Omit<Message, 'id' | 'timestamp' | 'sender' | 'isMe' | 'replyTo'>;
+
+
 export interface Conversation {
   id:string;
   name:string;

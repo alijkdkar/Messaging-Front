@@ -4,7 +4,7 @@ import * as React from "react";
 import { ConversationList } from "@/components/conversation-list";
 import { MessageView } from "@/components/message-view";
 import { mockConversations, mockUser } from "@/lib/mock-data";
-import type { Conversation, Message } from "@/lib/types";
+import type { Conversation, Message, SendMessagePayload } from "@/lib/types";
 
 export default function Home() {
   const [conversations, setConversations] = React.useState<Conversation[]>(mockConversations);
@@ -21,15 +21,15 @@ export default function Home() {
     setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unreadCount: 0 } : c));
   };
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (message: SendMessagePayload) => {
     if (!selectedConversation) return;
 
     const newMessage: Message = {
       id: `msg-${Date.now()}`,
-      text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       sender: mockUser,
       isMe: true,
+      ...message
     };
     
     // Move conversation with new message to the top

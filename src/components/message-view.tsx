@@ -5,21 +5,22 @@ import Image from "next/image";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Conversation, Message } from "@/lib/types";
+import type { Conversation, Message, SendMessagePayload } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { SendHorizonal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download } from "lucide-react";
+import { SendHorizonal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square } from "lucide-react";
 import { mockUser } from "@/lib/mock-data";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
 
 interface MessageViewProps {
   conversation?: Conversation;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (message: SendMessagePayload) => void;
 }
 
 const messageFormSchema = z.object({
@@ -28,6 +29,13 @@ const messageFormSchema = z.object({
 
 export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [recordedAudio, setRecordedAudio] = React.useState<{ url: string; blob: Blob } | null>(null);
+  const [recordingDuration, setRecordingDuration] = React.useState(0);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const recordingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   
   const form = useForm<z.infer<typeof messageFormSchema>>({
     resolver: zodResolver(messageFormSchema),
@@ -35,6 +43,8 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
       message: "",
     },
   });
+
+  const messageValue = form.watch("message");
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,9 +67,74 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   };
 
   function onSubmit(data: z.infer<typeof messageFormSchema>) {
-    onSendMessage(data.message);
+    onSendMessage({ text: data.message, type: 'text' });
     form.reset();
   }
+
+  const handleStartRecording = async () => {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        const audioChunks: Blob[] = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            setRecordedAudio({ url: audioUrl, blob: audioBlob });
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+        setRecordingDuration(0);
+        recordingTimerRef.current = setInterval(() => {
+            setRecordingDuration(prev => prev + 1);
+        }, 1000);
+      } catch (err) {
+        toast({
+            variant: "destructive",
+            title: "Microphone Access Denied",
+            description: "Please enable microphone permissions in your browser settings to record audio.",
+        })
+        console.error("Failed to get mic", err);
+      }
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if(recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const handleDeleteRecording = () => {
+    if (recordedAudio) {
+      URL.revokeObjectURL(recordedAudio.url);
+    }
+    setRecordedAudio(null);
+    setIsRecording(false);
+    setRecordingDuration(0);
+    if(recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+  };
+  
+  const handleSendVoiceMessage = () => {
+      if (!recordedAudio) return;
+      onSendMessage({
+          text: '',
+          type: 'voice',
+          mediaUrl: recordedAudio.url,
+          duration: new Date(recordingDuration * 1000).toISOString().substr(14, 5)
+      });
+      handleDeleteRecording();
+  };
 
   const otherUser = !conversation?.isGroup ? conversation?.members.find(m => m.id !== mockUser.id) : null;
 
@@ -143,46 +218,80 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
       </div>
 
       <footer className="p-3 border-t border-border shrink-0 bg-background">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
-                  <Paperclip className="w-5 h-5" />
-                  <span className="sr-only">Attach</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-60 p-2">
-                <div className="grid gap-1">
-                  <Button variant="ghost" className="justify-start gap-2">
-                    <FileIcon className="w-4 h-4" /> Document
-                  </Button>
-                  <Button variant="ghost" className="justify-start gap-2">
-                    <Mic className="w-4 h-4" /> Voice Message
-                  </Button>
-                   <Button variant="ghost" className="justify-start gap-2">
-                    <MapPin className="w-4 h-4" /> Location
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-            <FormField
-              control={form.control}
-              name="message"
-              render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormControl>
-                    <Input placeholder="Type a message..." {...field} className="bg-card/80 focus:bg-card" autoComplete="off" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <Button type="submit" size="icon" disabled={!form.formState.isDirty || !form.formState.isValid}>
-              <SendHorizonal className="w-5 h-5" />
-              <span className="sr-only">Send Message</span>
+        {isRecording || recordedAudio ? (
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" size="icon" onClick={handleDeleteRecording}>
+              <Trash2 className="w-5 h-5 text-muted-foreground" />
             </Button>
-          </form>
-        </Form>
+            <div className="flex items-center gap-2 p-1 rounded-full bg-card flex-1">
+              {isRecording ? (
+                <div className="flex items-center gap-2 w-full px-2">
+                  <Mic className="text-destructive w-5 h-5 animate-pulse" />
+                  <SoundWave isAnimating={true} />
+                </div>
+              ) : (
+                <AudioPlayerPreview url={recordedAudio!.url} />
+              )}
+              <span className="font-mono text-sm text-muted-foreground w-14 text-center">
+                {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
+              </span>
+            </div>
+             {isRecording ? (
+                <Button type="button" size="icon" onClick={handleStopRecording} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    <Square className="w-5 h-5" />
+                </Button>
+            ) : (
+                <Button type="button" size="icon" onClick={handleSendVoiceMessage}>
+                    <SendHorizonal className="w-5 h-5" />
+                </Button>
+            )}
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
+                    <Paperclip className="w-5 h-5" />
+                    <span className="sr-only">Attach</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-60 p-2">
+                  <div className="grid gap-1">
+                    <Button variant="ghost" className="justify-start gap-2">
+                      <FileIcon className="w-4 h-4" /> Document
+                    </Button>
+                    <Button variant="ghost" className="justify-start gap-2">
+                      <MapPin className="w-4 h-4" /> Location
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <FormField
+                control={form.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl>
+                      <Input placeholder="Type a message..." {...field} className="bg-card/80 focus:bg-card" autoComplete="off" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              {messageValue ? (
+                <Button type="submit" size="icon" disabled={!form.formState.isValid}>
+                  <SendHorizonal className="w-5 h-5" />
+                  <span className="sr-only">Send Message</span>
+                </Button>
+              ) : (
+                 <Button type="button" size="icon" variant="ghost" onClick={handleStartRecording}>
+                  <Mic className="w-5 h-5 text-muted-foreground" />
+                   <span className="sr-only">Record Voice</span>
+                </Button>
+              )}
+            </form>
+          </Form>
+        )}
       </footer>
     </div>
   );
@@ -296,11 +405,7 @@ function MessageBubble({ message }: { message: Message }) {
                     <Button onClick={togglePlay} variant="ghost" size="icon" className={cn("h-9 w-9 shrink-0 rounded-full", message.isMe ? "bg-white/25 hover:bg-white/30" : "bg-primary/10 hover:bg-primary/20")}>
                         {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                     </Button>
-                    <div className={cn("flex items-end h-6 flex-1 gap-px", message.isMe ? "text-primary-foreground" : "text-primary")}>
-                        {[...Array(20)].map((_, i) => (
-                            <div key={i} className="w-0.5 bg-current/50 rounded-full" style={{ height: `${Math.random() * 80 + 20}%`}}></div>
-                        ))}
-                    </div>
+                    <SoundWave isAnimating={false} />
                     <span className="text-xs font-mono text-muted-foreground">{message.duration}</span>
                 </div>
             )}
@@ -324,3 +429,56 @@ function MessageBubble({ message }: { message: Message }) {
     </div>
   );
 }
+
+const SoundWave = ({ isAnimating }: { isAnimating: boolean }) => (
+    <div className={cn("flex items-end h-6 flex-1 gap-px", isAnimating ? "text-primary" : "text-primary/70")}>
+        {[...Array(20)].map((_, i) => (
+            <div
+                key={i}
+                className="w-0.5 bg-current rounded-full"
+                style={{
+                    height: isAnimating ? `${Math.random() * 80 + 20}%` : `${(Math.sin(i * 0.4) * 0.4 + 0.6) * 80}%`,
+                }}
+            />
+        ))}
+    </div>
+);
+
+const AudioPlayerPreview = ({ url }: { url: string }) => {
+    const audioRef = React.useRef<HTMLAudioElement>(null);
+    const [isPlaying, setIsPlaying] = React.useState(false);
+
+    const togglePlay = () => {
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+
+    React.useEffect(() => {
+        const audio = audioRef.current;
+        const handleEnded = () => setIsPlaying(false);
+        if (audio) {
+            audio.addEventListener('ended', handleEnded);
+        }
+        return () => {
+            if (audio) {
+                audio.removeEventListener('ended', handleEnded);
+            }
+        };
+    }, []);
+
+    return (
+        <div className="flex items-center gap-2 w-full">
+            <audio ref={audioRef} src={url} preload="metadata" />
+            <Button onClick={togglePlay} type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full">
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            </Button>
+            <SoundWave isAnimating={isPlaying} />
+        </div>
+    );
+};
