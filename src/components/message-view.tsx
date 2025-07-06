@@ -26,7 +26,7 @@ interface MessageViewProps {
 }
 
 const messageFormSchema = z.object({
-  message: z.string().min(1, { message: "Message cannot be empty." }),
+  message: z.string(),
 });
 
 const formatTimestamp = (timestamp?: Date) => {
@@ -70,6 +70,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   const [mentionPopoverOpen, setMentionPopoverOpen] = React.useState(false);
   const [mentionSearch, setMentionSearch] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
   
   const form = useForm<z.infer<typeof messageFormSchema>>({
     resolver: zodResolver(messageFormSchema),
@@ -91,6 +92,19 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   React.useEffect(() => {
     form.reset({ message: '' });
   }, [conversation?.id, form]);
+  
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node) && inputRef.current && !inputRef.current.contains(event.target as Node)) {
+          setMentionPopoverOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [popoverRef, inputRef]);
+
 
   const getInitials = (name: string) => {
     const names = name.split(' ');
@@ -101,6 +115,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   };
 
   function onSubmit(data: z.infer<typeof messageFormSchema>) {
+    if (!data.message.trim()) return;
     onSendMessage({ text: data.message, type: 'text' });
     form.reset();
   }
@@ -185,12 +200,12 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
     const cursorPosition = inputRef.current?.selectionStart ?? currentValue.length;
     
     const textBeforeCursor = currentValue.substring(0, cursorPosition);
-    const textAfterCursor = currentValue.substring(cursorPosition);
     
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
     if (mentionMatch) {
         const startIndex = mentionMatch.index ?? 0;
         const newTextBefore = textBeforeCursor.substring(0, startIndex);
+        const textAfterCursor = currentValue.substring(cursorPosition);
         const newText = `${newTextBefore}@${nameWithoutSpaces} ${textAfterCursor}`;
         form.setValue("message", newText, { shouldValidate: true });
         setMentionPopoverOpen(false);
@@ -286,140 +301,146 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
       </div>
 
       <footer className="p-3 border-t border-border shrink-0 bg-background">
-        {isRecording || recordedAudio ? (
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" size="icon" onClick={handleDeleteRecording}>
-              <Trash2 className="w-5 h-5 text-muted-foreground" />
-            </Button>
-            <div className="flex items-center gap-2 p-1 rounded-full bg-card flex-1">
-              {isRecording ? (
-                <div className="flex items-center gap-2 w-full px-2">
-                  <Mic className="text-destructive w-5 h-5 animate-pulse" />
-                  <SoundWave isAnimating={true} />
-                </div>
-              ) : (
-                <AudioPlayerPreview url={recordedAudio!.url} />
-              )}
-              <span className="font-mono text-sm text-muted-foreground w-14 text-center">
-                {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
-              </span>
-            </div>
-             {isRecording ? (
-                <Button type="button" size="icon" onClick={handleStopRecording} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    <Square className="w-5 h-5" />
-                </Button>
-            ) : (
-                <Button type="button" size="icon" onClick={handleSendVoiceMessage}>
-                    <SendHorizonal className="w-5 h-5" />
-                </Button>
-            )}
-          </div>
-        ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
-                    <Paperclip className="w-5 h-5" />
-                    <span className="sr-only">Attach</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-60 p-2">
-                  <div className="grid gap-1">
-                    <Button variant="ghost" className="justify-start gap-2">
-                      <FileIcon className="w-4 h-4" /> Document
-                    </Button>
-                    <Button variant="ghost" className="justify-start gap-2">
-                      <MapPin className="w-4 h-4" /> Location
-                    </Button>
+        <div className="relative">
+          {isRecording || recordedAudio ? (
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" size="icon" onClick={handleDeleteRecording}>
+                <Trash2 className="w-5 h-5 text-muted-foreground" />
+              </Button>
+              <div className="flex items-center gap-2 p-1 rounded-full bg-card flex-1">
+                {isRecording ? (
+                  <div className="flex items-center gap-2 w-full px-2">
+                    <Mic className="text-destructive w-5 h-5 animate-pulse" />
+                    <SoundWave isAnimating={true} />
                   </div>
-                </PopoverContent>
-              </Popover>
-              <FormField
-                control={form.control}
-                name="message"
-                render={({ field }) => {
-                    const combinedRef = (el: HTMLInputElement | null) => {
-                        field.ref(el);
-                        inputRef.current = el;
-                    };
-
-                    return (
-                        <FormItem className="flex-1">
-                            <Popover open={conversation.isGroup && mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Input
-                                            {...field}
-                                            ref={combinedRef}
-                                            onChange={(e) => {
-                                                field.onChange(e);
-                                                
-                                                if (!conversation.isGroup) return;
-
-                                                const value = e.target.value;
-                                                const cursorPosition = e.target.selectionStart ?? 0;
-                                                const textBeforeCursor = value.substring(0, cursorPosition);
-                                                const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-                                                
-                                                if (mentionMatch) {
-                                                    setMentionPopoverOpen(true);
-                                                    setMentionSearch(mentionMatch[1] || "");
-                                                } else {
-                                                    setMentionPopoverOpen(false);
-                                                }
-                                            }}
-                                            placeholder="Type a message..."
-                                            className="bg-card/80 focus:bg-card"
-                                            autoComplete="off"
-                                        />
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-60 p-1" side="top" align="start">
-                                    {filteredMembers.length > 0 ? (
-                                        <ScrollArea className="h-fit max-h-48">
-                                            <div className="flex flex-col gap-1 p-1">
-                                                {filteredMembers.map(member => (
-                                                    <Button
-                                                        key={member.id}
-                                                        variant="ghost"
-                                                        className="w-full justify-start gap-2 p-2 h-auto"
-                                                        onClick={() => handleMentionSelect(member.name)}
-                                                    >
-                                                        <Avatar className="h-8 w-8">
-                                                            <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person" />
-                                                            <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <span>{member.name}</span>
-                                                    </Button>
-                                                ))}
-                                            </div>
-                                        </ScrollArea>
-                                    ) : (
-                                        <div className="p-2 text-center text-sm text-muted-foreground">
-                                            No one found.
-                                        </div>
-                                    )}
-                                </PopoverContent>
-                            </Popover>
-                        </FormItem>
-                    )
-                }}
-              />
-              {messageValue ? (
-                <Button type="submit" size="icon" disabled={!form.formState.isValid}>
-                  <SendHorizonal className="w-5 h-5" />
-                  <span className="sr-only">Send Message</span>
-                </Button>
+                ) : (
+                  <AudioPlayerPreview url={recordedAudio!.url} />
+                )}
+                <span className="font-mono text-sm text-muted-foreground w-14 text-center">
+                  {new Date(recordingDuration * 1000).toISOString().substr(14, 5)}
+                </span>
+              </div>
+              {isRecording ? (
+                  <Button type="button" size="icon" onClick={handleStopRecording} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      <Square className="w-5 h-5" />
+                  </Button>
               ) : (
-                 <Button type="button" size="icon" variant="ghost" onClick={handleStartRecording}>
-                  <Mic className="w-5 h-5 text-muted-foreground" />
-                   <span className="sr-only">Record Voice</span>
-                </Button>
+                  <Button type="button" size="icon" onClick={handleSendVoiceMessage}>
+                      <SendHorizonal className="w-5 h-5" />
+                  </Button>
               )}
-            </form>
-          </Form>
-        )}
+            </div>
+          ) : (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
+                      <Paperclip className="w-5 h-5" />
+                      <span className="sr-only">Attach</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-60 p-2">
+                    <div className="grid gap-1">
+                      <Button variant="ghost" className="justify-start gap-2">
+                        <FileIcon className="w-4 h-4" /> Document
+                      </Button>
+                      <Button variant="ghost" className="justify-start gap-2">
+                        <MapPin className="w-4 h-4" /> Location
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <FormField
+                  control={form.control}
+                  name="message"
+                  render={({ field }) => {
+                      const combinedRef = (el: HTMLInputElement | null) => {
+                          field.ref(el);
+                          inputRef.current = el;
+                      };
+
+                      return (
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <Input
+                                {...field}
+                                ref={combinedRef}
+                                onChange={(e) => {
+                                    field.onChange(e);
+                                    
+                                    if (!conversation.isGroup) return;
+
+                                    const value = e.target.value;
+                                    const cursorPosition = e.target.selectionStart ?? 0;
+                                    const textBeforeCursor = value.substring(0, cursorPosition);
+                                    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+                                    
+                                    if (mentionMatch) {
+                                        setMentionPopoverOpen(true);
+                                        setMentionSearch(mentionMatch[1] || "");
+                                    } else {
+                                        setMentionPopoverOpen(false);
+                                    }
+                                }}
+                                placeholder="Type a message..."
+                                className="bg-card/80 focus:bg-card"
+                                autoComplete="off"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )
+                  }}
+                />
+                {messageValue ? (
+                  <Button type="submit" size="icon">
+                    <SendHorizonal className="w-5 h-5" />
+                    <span className="sr-only">Send Message</span>
+                  </Button>
+                ) : (
+                  <Button type="button" size="icon" variant="ghost" onClick={handleStartRecording}>
+                    <Mic className="w-5 h-5 text-muted-foreground" />
+                    <span className="sr-only">Record Voice</span>
+                  </Button>
+                )}
+              </form>
+            </Form>
+          )}
+
+          {/* Custom Popover for Mentions */}
+          {conversation.isGroup && mentionPopoverOpen && (
+            <div 
+              ref={popoverRef}
+              className="absolute bottom-full mb-2 w-full max-w-sm rounded-md border bg-popover p-1 text-popover-foreground shadow-md z-10 animate-in fade-in-0 zoom-in-95"
+            >
+              {filteredMembers.length > 0 ? (
+                  <ScrollArea className="h-fit max-h-48">
+                      <div className="flex flex-col gap-1 p-1">
+                          {filteredMembers.map(member => (
+                              <Button
+                                  key={member.id}
+                                  variant="ghost"
+                                  className="w-full justify-start gap-2 p-2 h-auto"
+                                  onClick={() => handleMentionSelect(member.name)}
+                                  onMouseDown={(e) => e.preventDefault()}
+                              >
+                                  <Avatar className="h-8 w-8">
+                                      <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person" />
+                                      <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                                  </Avatar>
+                                  <span>{member.name}</span>
+                              </Button>
+                          ))}
+                      </div>
+                  </ScrollArea>
+              ) : (
+                  <div className="p-2 text-center text-sm text-muted-foreground">
+                      No one found.
+                  </div>
+              )}
+            </div>
+          )}
+        </div>
       </footer>
     </div>
   );
@@ -575,7 +596,8 @@ const SoundWave = ({ isAnimating }: { isAnimating: boolean }) => (
                 key={i}
                 className="w-0.5 bg-current rounded-full"
                 style={{
-                    height: isAnimating ? `${Math.random() * 80 + 20}%` : `${(Math.sin(i * 0.4) * 0.4 + 0.6) * 80}%`,
+                    height: isAnimating ? `${Math.random() * 80 + 20}%` : `${(Math.sin(i * 0.4) * 0.6 + 0.4) * 80}%`,
+                    animation: isAnimating ? `sound-wave 1.2s infinite ease-in-out ${i * 0.1}s` : 'none',
                 }}
             />
         ))}
