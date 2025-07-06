@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface MessageViewProps {
   conversation?: Conversation;
@@ -30,12 +31,16 @@ const messageFormSchema = z.object({
 export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-
+  
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordedAudio, setRecordedAudio] = React.useState<{ url: string; blob: Blob } | null>(null);
   const [recordingDuration, setRecordingDuration] = React.useState(0);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const recordingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const [mentionPopoverOpen, setMentionPopoverOpen] = React.useState(false);
+  const [mentionSearch, setMentionSearch] = React.useState('');
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
   
   const form = useForm<z.infer<typeof messageFormSchema>>({
     resolver: zodResolver(messageFormSchema),
@@ -137,6 +142,40 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   };
 
   const otherUser = !conversation?.isGroup ? conversation?.members.find(m => m.id !== mockUser.id) : null;
+  
+  const filteredMembers = React.useMemo(() => {
+    if (!conversation) return [];
+    return conversation.members
+        .filter(member => member.id !== mockUser.id)
+        .filter(member => member.name.toLowerCase().includes(mentionSearch.toLowerCase()));
+  }, [conversation, mentionSearch]);
+
+  const handleMentionSelect = (name: string) => {
+    const nameWithoutSpaces = name.replace(/\s/g, '');
+    const currentValue = form.getValues("message");
+    const cursorPosition = inputRef.current?.selectionStart ?? currentValue.length;
+    
+    const textBeforeCursor = currentValue.substring(0, cursorPosition);
+    const textAfterCursor = currentValue.substring(cursorPosition);
+    
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (mentionMatch) {
+        const startIndex = mentionMatch.index ?? 0;
+        const newTextBefore = textBeforeCursor.substring(0, startIndex);
+        const newText = `${newTextBefore}@${nameWithoutSpaces} ${textAfterCursor}`;
+        form.setValue("message", newText, { shouldValidate: true });
+        setMentionPopoverOpen(false);
+
+        setTimeout(() => {
+            if (inputRef.current) {
+                const newCursorPosition = `${newTextBefore}@${nameWithoutSpaces} `.length;
+                inputRef.current.focus();
+                inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+            }
+        }, 0);
+    }
+  };
+
 
   if (!conversation) {
     return (
@@ -270,13 +309,69 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
               <FormField
                 control={form.control}
                 name="message"
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormControl>
-                      <Input placeholder="Type a message..." {...field} className="bg-card/80 focus:bg-card" autoComplete="off" />
-                    </FormControl>
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                    const combinedRef = (el: HTMLInputElement | null) => {
+                        field.ref(el);
+                        inputRef.current = el;
+                    };
+
+                    return (
+                        <FormItem className="flex-1">
+                            <FormControl>
+                                <Popover open={mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Input
+                                            {...field}
+                                            ref={combinedRef}
+                                            onChange={(e) => {
+                                                field.onChange(e);
+                                                const value = e.target.value;
+                                                const cursorPosition = e.target.selectionStart ?? 0;
+                                                const textBeforeCursor = value.substring(0, cursorPosition);
+                                                const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+                                                if (mentionMatch) {
+                                                    setMentionPopoverOpen(true);
+                                                    setMentionSearch(mentionMatch[1] || "");
+                                                } else {
+                                                    setMentionPopoverOpen(false);
+                                                }
+                                            }}
+                                            placeholder="Type a message..."
+                                            className="bg-card/80 focus:bg-card"
+                                            autoComplete="off"
+                                        />
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-60 p-1" side="top" align="start">
+                                        {filteredMembers.length > 0 ? (
+                                            <ScrollArea className="h-fit max-h-48">
+                                                <div className="flex flex-col gap-1 p-1">
+                                                    {filteredMembers.map(member => (
+                                                        <Button
+                                                            key={member.id}
+                                                            variant="ghost"
+                                                            className="w-full justify-start gap-2 p-2 h-auto"
+                                                            onClick={() => handleMentionSelect(member.name)}
+                                                        >
+                                                            <Avatar className="h-8 w-8">
+                                                                <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="person" />
+                                                                <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                                                            </Avatar>
+                                                            <span>{member.name}</span>
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </ScrollArea>
+                                        ) : (
+                                            <div className="p-2 text-center text-sm text-muted-foreground">
+                                                No one found.
+                                            </div>
+                                        )}
+                                    </PopoverContent>
+                                </Popover>
+                            </FormControl>
+                        </FormItem>
+                    )
+                }}
               />
               {messageValue ? (
                 <Button type="submit" size="icon" disabled={!form.formState.isValid}>
@@ -315,8 +410,12 @@ function MessageBubble({ message }: { message: Message }) {
         const mentionRegex = /@(\w+)/g;
         return text.split(mentionRegex).map((part, index) => {
             if (index % 2 === 1) { // It's a mention
+                const isYou = part === mockUser.name || part === mockUser.name.replace(/\s/g, '');
                 return (
-                    <span key={index} className="bg-accent/20 text-accent-foreground font-semibold rounded px-1 py-0.5">
+                    <span key={index} className={cn(
+                      "font-semibold rounded px-1 py-0.5",
+                      isYou ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent-foreground"
+                    )}>
                         @{part}
                     </span>
                 );
