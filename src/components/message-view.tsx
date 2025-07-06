@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { SendHorizonal, Phone, Video, Info, Users } from "lucide-react";
+import { SendHorizonal, Phone, Video, Info, Users, Reply } from "lucide-react";
 
 interface MessageViewProps {
   conversation?: Conversation;
@@ -85,7 +86,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {conversation.messages.map((message) => (
             <MessageBubble key={message.id} message={message} />
           ))}
@@ -128,8 +129,22 @@ function MessageBubble({ message }: { message: Message }) {
 
     const isGroupMessage = !message.isMe && message.sender.id !== message.id.split('-')[1];
 
+    const renderWithMentions = (text: string) => {
+        const mentionRegex = /@(\w+)/g;
+        return text.split(mentionRegex).map((part, index) => {
+            if (index % 2 === 1) { // It's a mention
+                return (
+                    <span key={index} className="bg-accent/20 text-accent-foreground font-semibold rounded px-1 py-0.5">
+                        @{part}
+                    </span>
+                );
+            }
+            return part;
+        });
+    };
+
   return (
-    <div className={cn("flex items-end gap-3 w-full", message.isMe && "justify-end")}>
+    <div className={cn("flex items-start gap-3 w-full", message.isMe && "justify-end")}>
       {!message.isMe && (
         <Avatar className="h-8 w-8 shrink-0">
           <AvatarImage src={message.sender.avatarUrl} alt={message.sender.name} data-ai-hint="person" />
@@ -138,15 +153,41 @@ function MessageBubble({ message }: { message: Message }) {
       )}
       <div className={cn("flex flex-col gap-1 max-w-sm md:max-w-md", message.isMe ? "items-end" : "items-start")}>
         {isGroupMessage && <p className="text-xs text-muted-foreground px-2">{message.sender.name}</p>}
+        
+        {message.replyTo && (
+            <div className="bg-card/70 border-l-2 border-primary pl-2 pr-3 py-1.5 rounded-md text-sm w-full opacity-80 mb-1 max-w-full">
+                <div className="flex items-center gap-1.5">
+                    <Reply className="w-3.5 h-3.5 text-primary" />
+                    <p className="font-semibold text-xs text-primary">{message.replyTo.sender.name}</p>
+                </div>
+                <p className="text-muted-foreground text-sm truncate pl-2">{message.replyTo.text}</p>
+            </div>
+        )}
+
         <div
             className={cn(
-            "rounded-2xl p-3 text-sm",
+            "rounded-2xl text-sm",
             message.isMe
                 ? "bg-primary text-primary-foreground rounded-br-lg"
-                : "bg-card rounded-bl-lg"
+                : "bg-card rounded-bl-lg",
+            (message.type === 'image' || message.type === 'video') ? "p-1 bg-card" : "p-3"
             )}
         >
-            <p className="leading-snug">{message.text}</p>
+            {message.type === 'image' && message.mediaUrl && (
+                <div className="relative">
+                    <Image src={message.mediaUrl} alt={message.text || 'Image'} width={400} height={300} className="rounded-xl max-w-xs cursor-pointer object-cover" data-ai-hint="photo" />
+                    {message.text && <p className={cn("text-xs p-2", message.isMe ? "text-primary-foreground/80" : "text-foreground/80")}>{renderWithMentions(message.text)}</p>}
+                </div>
+            )}
+            {message.type === 'video' && message.mediaUrl && (
+                <div>
+                    <video src={message.mediaUrl} controls className="rounded-xl max-w-xs" />
+                    {message.text && <p className={cn("text-xs p-2", message.isMe ? "text-primary-foreground/80" : "text-foreground/80")}>{renderWithMentions(message.text)}</p>}
+                </div>
+            )}
+            {(!message.type || message.type === 'text') && message.text && (
+                <p className="leading-snug">{renderWithMentions(message.text)}</p>
+            )}
         </div>
       </div>
     </div>

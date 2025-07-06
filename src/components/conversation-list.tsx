@@ -39,6 +39,22 @@ export function ConversationList({
         <div className="p-2">
           {conversations.map((conv) => {
             const lastMessage = conv.messages[conv.messages.length - 1];
+            let lastMessageText = "No messages yet";
+
+            if (lastMessage) {
+                const prefix = lastMessage.isMe ? "You: " : "";
+                switch (lastMessage.type) {
+                    case 'image':
+                        lastMessageText = `${prefix}${lastMessage.text || 'Image'}`;
+                        break;
+                    case 'video':
+                        lastMessageText = `${prefix}${lastMessage.text || 'Video'}`;
+                        break;
+                    default:
+                        lastMessageText = `${prefix}${lastMessage.text}`;
+                        break;
+                }
+            }
             return (
               <Button
                 key={conv.id}
@@ -59,7 +75,7 @@ export function ConversationList({
                 <div className="flex-1 truncate">
                   <p className="font-semibold">{conv.name}</p>
                   <p className="text-sm text-muted-foreground truncate">
-                    {lastMessage ? `${lastMessage.isMe ? 'You: ' : ''}${lastMessage.text}` : 'No messages yet'}
+                    {lastMessageText}
                   </p>
                 </div>
                 <div className="flex flex-col items-end self-start ml-2">
