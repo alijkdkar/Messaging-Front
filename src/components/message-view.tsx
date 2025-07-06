@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { SendHorizonal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square, Clock, Check, CheckCheck, ImagePlus, VideoPlus } from "lucide-react";
+import { SendHorizontal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square, Clock, Check, CheckCheck, ImagePlus, FileVideo } from "lucide-react";
 import { mockUser } from "@/lib/mock-data";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -395,7 +395,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
                   </Button>
               ) : (
                   <Button type="button" size="icon" onClick={handleSendVoiceMessage}>
-                      <SendHorizonal className="w-5 h-5" />
+                      <SendHorizontal className="w-5 h-5" />
                   </Button>
               )}
             </div>
@@ -415,7 +415,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
                         <ImagePlus className="w-4 h-4" /> Image
                       </Button>
                        <Button variant="ghost" className="justify-start gap-2" onClick={() => triggerFileInput('video')}>
-                        <VideoPlus className="w-4 h-4" /> Video
+                        <FileVideo className="w-4 h-4" /> Video
                       </Button>
                       <Button variant="ghost" className="justify-start gap-2">
                         <FileIcon className="w-4 h-4" /> Document
@@ -469,7 +469,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
                 />
                 {messageValue ? (
                   <Button type="submit" size="icon">
-                    <SendHorizonal className="w-5 h-5" />
+                    <SendHorizontal className="w-5 h-5" />
                     <span className="sr-only">Send Message</span>
                   </Button>
                 ) : (
