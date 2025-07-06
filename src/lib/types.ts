@@ -23,9 +23,10 @@ export interface Message {
   duration?: string; // for voice messages
   fileName?: string; // for file messages
   fileSize?: string; // for file messages
+  uploadProgress?: number;
 }
 
-export type SendMessagePayload = Omit<Message, 'id' | 'timestamp' | 'sender' | 'isMe' | 'replyTo' | 'status'>;
+export type SendMessagePayload = Omit<Message, 'id' | 'timestamp' | 'sender' | 'isMe' | 'replyTo' | 'status' | 'uploadProgress'>;
 
 
 export interface Conversation {

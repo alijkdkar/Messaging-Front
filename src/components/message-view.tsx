@@ -11,14 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { SendHorizonal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square, Clock, Check, CheckCheck } from "lucide-react";
+import { SendHorizonal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square, Clock, Check, CheckCheck, ImagePlus, VideoPlus } from "lucide-react";
 import { mockUser } from "@/lib/mock-data";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "./ui/scroll-area";
 import { format, isToday, isYesterday } from "date-fns";
+import { Textarea } from "./ui/textarea";
+import { Progress } from "./ui/progress";
 
 interface MessageViewProps {
   conversation?: Conversation;
@@ -71,6 +73,10 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   const [mentionSearch, setMentionSearch] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const popoverRef = React.useRef<HTMLDivElement>(null);
+
+  const [mediaPreview, setMediaPreview] = React.useState<{ file: File; url: string; type: 'image' | 'video' } | null>(null);
+  const [caption, setCaption] = React.useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const form = useForm<z.infer<typeof messageFormSchema>>({
     resolver: zodResolver(messageFormSchema),
@@ -183,6 +189,38 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
           duration: new Date(recordingDuration * 1000).toISOString().substr(14, 5)
       });
       handleDeleteRecording();
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+        const url = URL.createObjectURL(file);
+        const type = file.type.startsWith('image/') ? 'image' : 'video';
+        setMediaPreview({ file, url, type });
+    }
+    if (event.target) {
+        event.target.value = '';
+    }
+  };
+
+  const triggerFileInput = (type: 'image' | 'video') => {
+      if (fileInputRef.current) {
+          fileInputRef.current.accept = type === 'image' ? 'image/*' : 'video/*';
+          fileInputRef.current.click();
+      }
+  };
+
+  const handleSendMedia = () => {
+    if (!mediaPreview) return;
+    onSendMessage({
+        text: caption,
+        type: mediaPreview.type,
+        mediaUrl: mediaPreview.url,
+        fileName: mediaPreview.file.name,
+        fileSize: `${(mediaPreview.file.size / 1024 / 1024).toFixed(2)} MB`,
+    });
+    setMediaPreview(null);
+    setCaption('');
   };
 
   const otherUser = !conversation?.isGroup ? conversation?.members.find(m => m.id !== mockUser.id) : null;
@@ -302,6 +340,37 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
 
       <footer className="p-3 border-t border-border shrink-0 bg-background">
         <div className="relative">
+          <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+
+          {mediaPreview && (
+            <Dialog open={!!mediaPreview} onOpenChange={(open) => !open && setMediaPreview(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Send {mediaPreview.type}</DialogTitle>
+                  <DialogDescription>Add a caption to your media before sending.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {mediaPreview.type === 'image' ? (
+                    <Image src={mediaPreview.url} alt="Preview" width={400} height={300} className="rounded-md max-h-80 w-auto object-contain mx-auto" data-ai-hint="preview photo"/>
+                  ) : (
+                    <video src={mediaPreview.url} controls className="rounded-md max-h-80 w-auto mx-auto" />
+                  )}
+                  <Textarea
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    placeholder="Add a caption..."
+                    className="mt-4"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setMediaPreview(null)}>Cancel</Button>
+                  <Button onClick={handleSendMedia}>Send</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+
+
           {isRecording || recordedAudio ? (
             <div className="flex items-center gap-2">
               <Button type="button" variant="ghost" size="icon" onClick={handleDeleteRecording}>
@@ -342,6 +411,12 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
                   </PopoverTrigger>
                   <PopoverContent className="w-60 p-2">
                     <div className="grid gap-1">
+                       <Button variant="ghost" className="justify-start gap-2" onClick={() => triggerFileInput('image')}>
+                        <ImagePlus className="w-4 h-4" /> Image
+                      </Button>
+                       <Button variant="ghost" className="justify-start gap-2" onClick={() => triggerFileInput('video')}>
+                        <VideoPlus className="w-4 h-4" /> Video
+                      </Button>
                       <Button variant="ghost" className="justify-start gap-2">
                         <FileIcon className="w-4 h-4" /> Document
                       </Button>
@@ -526,7 +601,7 @@ function MessageBubble({ message }: { message: Message }) {
 
         <div
             className={cn(
-            "rounded-2xl text-sm",
+            "rounded-2xl text-sm relative",
             message.isMe
                 ? "bg-primary text-primary-foreground rounded-br-lg"
                 : "bg-secondary rounded-bl-lg",
@@ -535,10 +610,10 @@ function MessageBubble({ message }: { message: Message }) {
         >
             {message.type === 'image' && message.mediaUrl && (
                 <Dialog>
-                    <DialogTrigger>
+                    <DialogTrigger asChild disabled={typeof message.uploadProgress === 'number'}>
                         <div className="relative">
                             <Image src={message.mediaUrl} alt={message.text || 'Image'} width={400} height={300} className="rounded-xl max-w-xs cursor-pointer object-cover" data-ai-hint="photo" />
-                            {message.text && <p className={cn("text-xs p-2", message.isMe ? "text-primary-foreground/80" : "text-foreground/80")}>{renderWithMentions(message.text)}</p>}
+                            {typeof message.uploadProgress !== 'number' && message.text && <p className={cn("text-xs p-2", message.isMe ? "text-primary-foreground/80" : "text-foreground/80")}>{renderWithMentions(message.text)}</p>}
                         </div>
                     </DialogTrigger>
                     <DialogContent className="p-0 border-0 max-w-4xl bg-transparent">
@@ -547,9 +622,9 @@ function MessageBubble({ message }: { message: Message }) {
                 </Dialog>
             )}
             {message.type === 'video' && message.mediaUrl && (
-                <div>
-                    <video src={message.mediaUrl} controls className="rounded-xl max-w-xs" />
-                    {message.text && <p className={cn("text-xs p-2", message.isMe ? "text-primary-foreground/80" : "text-foreground/80")}>{renderWithMentions(message.text)}</p>}
+                <div className="relative">
+                    <video src={message.mediaUrl} controls={typeof message.uploadProgress !== 'number'} className="rounded-xl max-w-xs" />
+                    {typeof message.uploadProgress !== 'number' && message.text && <p className={cn("text-xs p-2", message.isMe ? "text-primary-foreground/80" : "text-foreground/80")}>{renderWithMentions(message.text)}</p>}
                 </div>
             )}
             {message.type === 'voice' && message.mediaUrl && (
@@ -576,6 +651,12 @@ function MessageBubble({ message }: { message: Message }) {
             )}
             {(!message.type || message.type === 'text') && message.text && (
                 <p className="leading-snug">{renderWithMentions(message.text)}</p>
+            )}
+             {message.isMe && typeof message.uploadProgress === 'number' && (
+                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center rounded-xl cursor-default">
+                    <Progress value={message.uploadProgress} className="w-3/4 h-2 bg-background/20" />
+                    <p className="text-white text-xs mt-2 font-semibold">{`Uploading...`}</p>
+                </div>
             )}
         </div>
         <div className="flex items-center gap-1.5 px-2">

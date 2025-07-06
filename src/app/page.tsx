@@ -21,7 +21,7 @@ export default function Home() {
     setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unreadCount: 0 } : c));
   };
 
-  const handleSendMessage = (message: SendMessagePayload) => {
+  const handleSendMessage = (payload: SendMessagePayload) => {
     if (!selectedConversation) return;
 
     const newMessage: Message = {
@@ -30,9 +30,14 @@ export default function Home() {
       sender: mockUser,
       isMe: true,
       status: 'sending',
-      ...message
+      ...payload,
     };
     
+    // Add initial upload progress for media messages
+    if (payload.type === 'image' || payload.type === 'video') {
+        newMessage.uploadProgress = 0;
+    }
+
     const newConversations = conversations.map((conv) => {
         if (conv.id === selectedConversationId) {
           return {
@@ -54,52 +59,117 @@ export default function Home() {
     };
 
     setConversations(sortConversations(newConversations));
+    
+    // Simulate upload for media messages
+    if (typeof newMessage.uploadProgress === 'number') {
+        const uploadInterval = setInterval(() => {
+            setConversations(prev => prev.map(conv => {
+                if (conv.id === selectedConversationId) {
+                    return {
+                        ...conv,
+                        messages: conv.messages.map(m => {
+                            if (m.id === newMessage.id && typeof m.uploadProgress === 'number' && m.uploadProgress < 100) {
+                                return { ...m, uploadProgress: Math.min(m.uploadProgress + 20, 100) };
+                            }
+                            return m;
+                        })
+                    };
+                }
+                return conv;
+            }));
+        }, 500);
 
-    // Simulate status updates
-    setTimeout(() => {
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === selectedConversationId) {
-          return {
-            ...conv,
-            messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'sent' } : m)
-          };
-        }
-        return conv;
-      }));
-    }, 1000);
+        setTimeout(() => {
+            clearInterval(uploadInterval);
+            setConversations(prev => prev.map(conv => {
+                if (conv.id === selectedConversationId) {
+                    return {
+                        ...conv,
+                        messages: conv.messages.map(m => {
+                            if (m.id === newMessage.id) {
+                                const { uploadProgress, ...restOfMessage } = m;
+                                return { ...restOfMessage, status: 'sent' };
+                            }
+                            return m;
+                        })
+                    };
+                }
+                return conv;
+            }));
 
-    setTimeout(() => {
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === selectedConversationId) {
-          return {
-            ...conv,
-            messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'delivered' } : m)
-          };
-        }
-        return conv;
-      }));
-    }, 2500);
+            // Chain status updates after upload completes
+            setTimeout(() => {
+                setConversations(prev => prev.map(conv => {
+                    if (conv.id === selectedConversationId) {
+                        return { ...conv, messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'delivered' } : m) };
+                    }
+                    return conv;
+                }));
+            }, 1500);
 
-    // Simulate 'seen' only if the user is currently viewing the conversation
-    setTimeout(() => {
-      setConversations(prev => {
-        const currentConv = prev.find(c => c.id === selectedConversationId);
-        // Assuming the other user reads it if we are in the chat.
-        // In a real app, this would come from a server event.
-        if (currentConv) {
-          return prev.map(conv => {
+            setTimeout(() => {
+                setConversations(prev => {
+                    const currentConv = prev.find(c => c.id === selectedConversationId);
+                    if (currentConv) {
+                        return prev.map(conv => {
+                            if (conv.id === selectedConversationId) {
+                                return { ...conv, messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'seen' } : m) };
+                            }
+                            return conv;
+                        });
+                    }
+                    return prev;
+                });
+            }, 3000);
+
+        }, 2500 + 500); // 2.5s for upload
+    } else {
+        // Simulate status updates for non-media messages
+        setTimeout(() => {
+        setConversations(prev => prev.map(conv => {
             if (conv.id === selectedConversationId) {
-              return {
+            return {
                 ...conv,
-                messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'seen' } : m)
-              };
+                messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'sent' } : m)
+            };
             }
             return conv;
-          });
-        }
-        return prev;
-      });
-    }, 4000);
+        }));
+        }, 1000);
+
+        setTimeout(() => {
+        setConversations(prev => prev.map(conv => {
+            if (conv.id === selectedConversationId) {
+            return {
+                ...conv,
+                messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'delivered' } : m)
+            };
+            }
+            return conv;
+        }));
+        }, 2500);
+
+        // Simulate 'seen' only if the user is currently viewing the conversation
+        setTimeout(() => {
+        setConversations(prev => {
+            const currentConv = prev.find(c => c.id === selectedConversationId);
+            // Assuming the other user reads it if we are in the chat.
+            // In a real app, this would come from a server event.
+            if (currentConv) {
+            return prev.map(conv => {
+                if (conv.id === selectedConversationId) {
+                return {
+                    ...conv,
+                    messages: conv.messages.map(m => m.id === newMessage.id ? { ...m, status: 'seen' } : m)
+                };
+                }
+                return conv;
+            });
+            }
+            return prev;
+        });
+        }, 4000);
+    }
   };
 
   return (
