@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package proto;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/alijkdkar/Messaging-Core/pkg/proto";
+
+service MessagingService {
+  // The request message containing the user's name.
+  rpc SendMessage (SendMessageRequest) returns (SendMessageResponse);
+  
+  // Get all messages for a conversation
+  rpc GetConversationMessages (GetConversationMessagesRequest) returns (GetConversationMessagesResponse);
+  
+  // Subscribe to real-time message updates
+  rpc SubscribeMessages (SubscribeMessagesRequest) returns (stream Message);
+}
+
+// Header represents a key-value pair for message metadata
+message Header {
+  string key = 1;
+  string value = 2;
+}
+
+// MessageType defines the type of message content
+enum MessageType {
+  TEXT = 0;
+  IMAGE = 1;
+  VIDEO = 2;
+  FILE = 3;
+  AUDIO = 4;
+}
+
+// MediaInfo contains metadata for media files
+message MediaInfo {
+  string file_name = 1;
+  string mime_type = 2;
+  int64 file_size = 3;
+  string url = 4;  // URL or path to the media file
+  string caption = 5;
+  map<string, string> metadata = 6;  // Additional metadata (e.g., width/height for images)
+}
+
+message Message {
+  string id = 1;
+  string conversation_id = 2;
+  string sender = 3;
+  MessageType message_type = 4;
+  string text_content = 5;
+  MediaInfo media_info = 6;
+  repeated Header headers = 7;
+  map<string, string> properties = 8;
+  google.protobuf.Timestamp client_timestamp = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message SendMessageRequest {
+  string sender = 1;  // Sender's identifier
+  string conversation_id = 2;  // Conversation/Channel ID
+  MessageType message_type = 3;  // Type of the message
+  
+  // Content can be text or reference to media
+  oneof content {
+    string text = 4;  // Text content for TEXT type
+    MediaInfo media = 5;  // Media info for non-text messages
+  }
+  
+  repeated Header headers = 6;  // Additional headers/metadata
+  map<string, string> properties = 7;  // Additional properties
+  google.protobuf.Timestamp timestamp = 8;  // Optional client-side timestamp
+}
+
+message SendMessageResponse {
+  string message_id = 1;
+  bool success = 2;
+  string error = 3;
+  google.protobuf.Timestamp server_timestamp = 4;  // Server-side timestamp
+  repeated Header headers = 5;  // Response headers
+}
+
+message GetConversationMessagesRequest {
+  string conversation_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message GetConversationMessagesResponse {
+  repeated Message messages = 1;
+  bool success = 2;
+  string error = 3;
+}
+
+// SubscribeMessagesRequest is used to subscribe to real-time message updates
+// SubscribeMessagesRequest is used to subscribe to real-time message updates
+message SubscribeMessagesRequest {
+  string user_id = 1;  // User ID to subscribe messages for
+}

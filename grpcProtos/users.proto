@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package proto;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/alijkdkar/Messaging-Core/pkg/proto";
+
+
+service UserService{
+
+    rpc AddUser(AddUserRequest) returns (AddUserResponse);
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+
+message AddUserRequest {
+    string username=1;
+    string email = 2;
+    string phoneNumber=3;
+    string firstname=4;
+    string lastname=5;
+}
+
+message AddUserResponse{
+    string user_id=1;
+    bool success=2;
+    string error=3;
+    google.protobuf.Timestamp server_timestamp = 4;  // Server-side timestamp
+}
+
+message GetUserRequest{
+    string user_id=1;
+}
+
+message GetUserResponse{
+    string user_id=1;
+    string username=2;
+    string email=3;
+    string phone_number=4;
+    string first_name=5;
+    string last_name=6;
+    string display_name=7;
+    string avatar_url=8;
+    string bio=9;
+    string status=10;
+    google.protobuf.Timestamp last_seen_at=11;
+    bool is_online=12;
+    bool is_verified=13;
+    bool is_bot=14;
+    string language=15;
+    string time_zone=16;
+    google.protobuf.Timestamp created_at=17;
+    google.protobuf.Timestamp updated_at=18;
+}

@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+package messaging;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = ".;proto";
+
+// ConversationType represents the type of conversation
+enum ConversationType {
+  CONVERSATION_TYPE_UNSPECIFIED = 0;
+  CONVERSATION_TYPE_DIRECT = 1;  // One-to-one conversation
+  CONVERSATION_TYPE_GROUP = 2;   // Group conversation
+}
+
+// ParticipantRole represents the role of a participant in a conversation
+enum ParticipantRole {
+  PARTICIPANT_ROLE_UNSPECIFIED = 0;
+  PARTICIPANT_ROLE_MEMBER = 1;
+  PARTICIPANT_ROLE_ADMIN = 2;
+}
+
+message Metadata {
+    string key = 1;
+    string value = 2;
+  }
+
+// Conversation represents a conversation between users
+message Conversation {
+  string id = 1;  // UUID string
+  string title = 2;
+  ConversationType type = 3;
+  string avatar_url = 4;
+  repeated Participant participants = 5;  // List of participant UUIDs
+  repeated string admin_ids = 6;  // List of admin UUIDs
+  string created_by = 7;  // UUID string
+  string last_message_id = 8;  // UUID string
+  google.protobuf.Timestamp last_message_at = 9;
+  repeated Metadata metadata = 10;
+  bool is_archived = 11;
+  bool is_muted = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  google.protobuf.Timestamp deleted_at = 15;
+  int32 unread_count = 16;
+  bool mentioned_me = 17;
+}
+
+// Participant represents a user's participation in a conversation
+message Participant {
+  string id = 1;  // UUID string
+  string conversation_id = 2;  // UUID string
+  string user_id = 3;  // UUID string
+  ParticipantRole role = 4;
+  google.protobuf.Timestamp joined_at = 5;
+  google.protobuf.Timestamp left_at = 6;
+  bool is_admin = 7;
+  bool is_muted = 8;
+  string nickname = 9;
+  repeated Metadata metadata = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+// ConversationSettings represents user-specific settings for a conversation
+message ConversationSettings {
+  string id = 1;  // UUID string
+  string conversation_id = 2;  // UUID string
+  string user_id = 3;  // UUID string
+  bool is_muted = 4;
+  bool is_archived = 5;
+  string custom_name = 6;
+  Metadata metadata = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// Request/Response messages for Conversation service
+message CreateConversationRequest {
+  string title = 1;
+  ConversationType type = 2;
+  string avatar_url = 3;
+  repeated string participant_ids = 4;
+  repeated Metadata metadata = 5;
+  bool is_archived = 6;
+  bool is_muted = 7;
+}
+
+message CreateConversationResponse {
+  string id = 1;
+  bool success = 2;
+  string error = 3;
+}
+
+message GetConversationRequest {
+  string id = 1;
+}
+
+message GetConversationResponse {
+  bool success = 1;
+  string error = 2;
+  Conversation conversation = 3;
+}
+
+message ListConversationsRequest {
+  string user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListConversationsResponse {
+  repeated Conversation conversations = 1;
+  int32 total_count = 2;
+}
+
+message UpdateConversationRequest {
+  string id = 1;
+  string title = 2;
+  ConversationType type = 3;
+  string avatar_url = 4;
+  repeated string participant_ids = 5;
+  repeated string admin_ids = 6;
+  repeated Metadata metadata = 7;
+  bool is_archived = 8;
+  bool is_muted = 9;
+}
+
+message UpdateConversationResponse {
+  bool sucess = 1;
+  string error = 2; 
+  Conversation conversation = 3;
+}
+
+message DeleteConversationRequest {
+  string id = 1;
+}
+
+message DeleteConversationResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// Request/Response messages for Participant service
+message AddParticipantRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  ParticipantRole role = 3;
+}
+
+message AddParticipantResponse {
+  bool sucess = 1;
+  string error =2;
+}
+
+message RemoveParticipantRequest {
+  string participantId = 1;
+  string conversationId = 2;
+}
+
+message RemoveParticipantResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message UpdateParticipantRequest {
+  string id = 1;
+  Participant participant = 2;
+}
+
+message UpdateParticipantResponse {
+  Participant participant = 1;
+}
+
+message ListParticipantsRequest {
+  string conversation_id = 1;
+}
+
+message ListParticipantsResponse {
+  repeated Participant participants = 1;
+  int32 TotalCount=2;
+}
+
+// Request/Response messages for ConversationSettings service
+message GetConversationSettingsRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+}
+
+message GetConversationSettingsResponse {
+  ConversationSettings settings = 1;
+}
+
+message UpdateConversationSettingsRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  ConversationSettings settings = 3;
+}
+
+message UpdateConversationSettingsResponse {
+  ConversationSettings settings = 1;
+}
+
+// Service definitions
+service ConversationService {
+  // CRUD operations for conversations
+  rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc UpdateConversation(UpdateConversationRequest) returns (UpdateConversationResponse);
+  rpc DeleteConversation(DeleteConversationRequest) returns (DeleteConversationResponse);
+
+//   // Operations for participants
+  rpc AddParticipant(AddParticipantRequest) returns (AddParticipantResponse);
+  rpc RemoveParticipant(RemoveParticipantRequest) returns (RemoveParticipantResponse);
+//   rpc UpdateParticipant(UpdateParticipantRequest) returns (UpdateParticipantResponse);
+  rpc ListParticipants(ListParticipantsRequest) returns (ListParticipantsResponse);
+
+//   // Operations for conversation settings
+//   rpc GetConversationSettings(GetConversationSettingsRequest) returns (GetConversationSettingsResponse);
+//   rpc UpdateConversationSettings(UpdateConversationSettingsRequest) returns (UpdateConversationSettingsResponse);
+}
+
