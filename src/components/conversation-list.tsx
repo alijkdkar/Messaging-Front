@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { format, isToday, isYesterday } from "date-fns";
+import { useTheme } from "next-themes";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -46,6 +49,7 @@ const formatTimestampForList = (timestamp?: Date) => {
 
 function UserProfileSheet({ user }: { user: User }) {
   const [status, setStatus] = React.useState<UserStatus>(user.status || 'offline');
+  const { theme, setTheme } = useTheme();
 
   return (
     <Sheet>
@@ -108,6 +112,24 @@ function UserProfileSheet({ user }: { user: User }) {
                 )} />
                 <span className="capitalize">{status}</span>
             </div>
+           </div>
+           <Separator className="my-6" />
+           <div className="space-y-4">
+            <h3 className="font-semibold text-lg">Theme</h3>
+            <RadioGroup value={theme} onValueChange={setTheme} className="space-y-2">
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="light" id="light" />
+                    <Label htmlFor="light">Light</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dark" id="dark" />
+                    <Label htmlFor="dark">Dark</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="system" id="system" />
+                    <Label htmlFor="system">System</Label>
+                </div>
+            </RadioGroup>
            </div>
         </div>
       </SheetContent>
