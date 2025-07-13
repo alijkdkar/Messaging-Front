@@ -5,14 +5,13 @@ import Image from "next/image";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Conversation, Message, SendMessagePayload, MessageStatus } from "@/lib/types";
+import type { Conversation, Message, SendMessagePayload, MessageStatus, User } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { SendHorizontal, Phone, Video, Info, Users, Reply, Paperclip, Mic, MapPin, File as FileIcon, Play, Pause, Download, Trash2, Square, Clock, Check, CheckCheck, ImagePlus, FileVideo } from "lucide-react";
-import { mockUser } from "@/lib/mock-data";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,6 +22,7 @@ import { Textarea } from "./ui/textarea";
 import { Progress } from "./ui/progress";
 
 interface MessageViewProps {
+  user: User;
   conversation?: Conversation;
   onSendMessage: (message: SendMessagePayload) => void;
 }
@@ -59,7 +59,7 @@ const MessageStatusIndicator = ({ status }: { status?: MessageStatus }) => {
     }
 };
 
-export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
+export function MessageView({ user, conversation, onSendMessage }: MessageViewProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -223,14 +223,14 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
     setCaption('');
   };
 
-  const otherUser = !conversation?.isGroup ? conversation?.members.find(m => m.id !== mockUser.id) : null;
+  const otherUser = !conversation?.isGroup ? conversation?.members.find(m => m.id !== user.id) : null;
   
   const filteredMembers = React.useMemo(() => {
     if (!conversation || !conversation.isGroup) return [];
     return conversation.members
-        .filter(member => member.id !== mockUser.id)
+        .filter(member => member.id !== user.id)
         .filter(member => member.name.toLowerCase().includes(mentionSearch.toLowerCase()));
-  }, [conversation, mentionSearch]);
+  }, [conversation, mentionSearch, user.id]);
 
   const handleMentionSelect = (name: string) => {
     const nameWithoutSpaces = name.replace(/\s/g, '');
@@ -333,7 +333,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {conversation.messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble key={message.id} message={message} user={user}/>
           ))}
           <div ref={messagesEndRef} />
       </div>
@@ -521,7 +521,7 @@ export function MessageView({ conversation, onSendMessage }: MessageViewProps) {
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, user }: { message: Message, user: User }) {
     const audioRef = React.useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = React.useState(false);
 
@@ -539,7 +539,7 @@ function MessageBubble({ message }: { message: Message }) {
         const mentionRegex = /@(\w+)/g;
         return text.split(mentionRegex).map((part, index) => {
             if (index % 2 === 1) { // It's a mention
-                const isYou = part === mockUser.name || part === mockUser.name.replace(/\s/g, '');
+                const isYou = part === user.name || part === user.name.replace(/\s/g, '');
                 return (
                     <span key={index} className={cn(
                       "font-semibold rounded px-1 py-0.5",
@@ -558,7 +558,7 @@ function MessageBubble({ message }: { message: Message }) {
             if (isPlaying) {
                 audioRef.current.pause();
             } else {
-                audioRef.current.play();
+                audio.current.play();
             }
             setIsPlaying(!isPlaying);
         }
@@ -723,5 +723,3 @@ const AudioPlayerPreview = ({ url }: { url: string }) => {
         </div>
     );
 };
-
-    

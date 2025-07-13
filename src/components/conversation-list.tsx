@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Bot, Users, Search, Mail, Phone, Edit } from 'lucide-react';
-import { mockUser } from "@/lib/mock-data";
 import {
   Sheet,
   SheetContent,
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/select";
 
 interface ConversationListProps {
+  user: User;
   conversations: Conversation[];
   selectedConversationId: string | null;
   onSelectConversation: (id: string) => void;
@@ -139,6 +139,7 @@ function UserProfileSheet({ user }: { user: User }) {
 }
 
 export function ConversationList({
+  user,
   conversations,
   selectedConversationId,
   onSelectConversation,
@@ -159,7 +160,7 @@ export function ConversationList({
                 WhisperNet
                 </h1>
             </div>
-            <UserProfileSheet user={mockUser} />
+            <UserProfileSheet user={user} />
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -176,7 +177,7 @@ export function ConversationList({
           {filteredConversations.map((conv) => {
             const lastMessage = conv.messages[conv.messages.length - 1];
             const isUnread = !!conv.unreadCount && conv.unreadCount > 0;
-            const hasMention = isUnread && conv.messages.slice(-conv.unreadCount).some(m => !m.isMe && m.text.includes(`@${mockUser.name}`));
+            const hasMention = isUnread && conv.messages.slice(-conv.unreadCount).some(m => !m.isMe && m.text.includes(`@${user.name}`));
 
             
             let lastMessageText = "No messages yet";
@@ -204,7 +205,7 @@ export function ConversationList({
                 }
             }
 
-            const otherMember = conv.isGroup ? null : conv.members.find(m => m.id !== mockUser.id);
+            const otherMember = conv.isGroup ? null : conv.members.find(m => m.id !== user.id);
             
             return (
               <Button

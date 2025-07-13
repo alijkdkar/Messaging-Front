@@ -1,68 +1,172 @@
-import type { Conversation } from './types';
+import type { Conversation, User, Message } from './types';
 import * as grpc from '@grpc/grpc-js';
-import * as protoLoader from '@grpc/proto-loader';
-
-// This function simulates a gRPC call to fetch conversations.
-// In a real application, this would be replaced with an actual gRPC client.
-
-// Import the generated gRPC client and types
-// Assuming the generated files are in a 'grpc_generated' folder relative to the project root
-// You might need to adjust the paths based on where you generated the files
 import { ConversationServiceClient } from '../grpc_generated/conversation_grpc_pb';
-import { ListConversationsRequest, Conversation as GrpcConversation } from '../grpc_generated/conversation_pb';
+import {
+  ListConversationsRequest,
+  GetConversationRequest,
+  ListParticipantsRequest,
+  Conversation as GrpcConversation,
+  Participant as GrpcParticipant
+} from '../grpc_generated/conversation_pb';
+import { AuthServiceClient } from '../grpc_generated/auth_grpc_pb';
+import {
+  GetConversationMessagesRequest,
+  SendMessageRequest,
+  Message as GrpcMessage
+} from '../grpc_generated/messaging_pb';
+import { MessagingServiceClient } from '../grpc_generated/messaging_grpc_pb';
+import { UserServiceClient } from '../grpc_generated/users_grpc_pb';
+import { GetUserRequest, GetUserResponse } from '../grpc_generated/users_pb';
+import { VerifyTokenRequest } from '../grpc_generated/auth_pb';
 
-// Adjust path as needed
-const CONVERSATION_PROTO_PATH = __dirname + '/../grpcProtos/conversation.proto';
-
-const packageDefinition = protoLoader.loadSync(
-  CONVERSATION_PROTO_PATH,
-  {
-    keepCase: true,
-    longs: String,
-    enums: String,
-    defaults: true,
-    oneofs: true,
-  });
-
-const conversationProto: any = grpc.loadPackageDefinition(packageDefinition).messaging;
-
-// Assuming your gRPC server is accessible at this address
 const GRPC_SERVER_ADDRESS = 'ai-gap.ir';
 
-// Create a gRPC client instance
-const grpcClient = new ConversationServiceClient(
+const conversationClient = new ConversationServiceClient(
   GRPC_SERVER_ADDRESS,
-  grpc.credentials.createInsecure() // Use createSsl for production with SSL
+  grpc.credentials.createInsecure()
 );
 
-// This function makes the actual gRPC call to fetch conversations.
-export async function getConversations(): Promise<Conversation[]> {
-  return new Promise((resolve, reject) => {
-    const request = new ListConversationsRequest();
-    // You might want to set userId, page, and pageSize on the request
-    // based on your application's logic
-    // request.setUserId('some_user_id');
-    // request.setPage(1);
-    // request.setPageSize(10);
+const authClient = new AuthServiceClient(
+  GRPC_SERVER_ADDRESS,
+  grpc.credentials.createInsecure()
+);
 
-    grpcClient.listConversations(request, (error: any, response: any) => {
+const messagingClient = new MessagingServiceClient(
+  GRPC_SERVER_ADDRESS,
+  grpc.credentials.createInsecure()
+);
+
+const userClient = new UserServiceClient(
+  GRPC_SERVER_ADDRESS,
+  grpc.credentials.createInsecure()
+);
+
+async function getUser(userId: string): Promise<User> {
+  return new Promise((resolve, reject) => {
+    const request = new GetUserRequest();
+    request.setUserId(userId);
+    userClient.getUser(request, (error: any, response: GetUserResponse) => {
       if (error) {
-        reject(error);
-      } else {
-        // Map the gRPC Conversation objects to your local Conversation type
-        const conversations: Conversation[] = response.getConversationsList().map((grpcConv: GrpcConversation) => ({
-          id: grpcConv.getId(),
-          title: grpcConv.getTitle(),
-          // Map other fields as needed, handling potential differences in types
-          // For example, converting timestamps:
-          // lastMessageAt: grpcConv.getLastMessageAt()?.toDate(),
-          // createdAt: grpcConv.getCreatedAt()?.toDate(),
-          // updatedAt: grpcConv.getUpdatedAt()?.toDate(),
-          // deletedAt: grpcConv.getDeletedAt()?.toDate(),
-          // ... other fields
-        }));
-        resolve(conversations);
+        return reject(error);
       }
+      resolve({
+        id: response.getUserId(),
+        name: response.getDisplayName() || `${response.getFirstName()} ${response.getLastName()}`,
+        avatarUrl: response.getAvatarUrl(),
+        status: response.getIsOnline() ? 'online' : 'offline',
+      });
     });
   });
+}
+
+export async function getConversations(userId: string): Promise<Conversation[]> {
+  return new Promise((resolve, reject) => {
+    const request = new ListConversationsRequest();
+    request.setUserId(userId);
+
+    conversationClient.listConversations(request, async (error: any, response: any) => {
+      if (error) {
+        return reject(error);
+      }
+
+      const conversations: GrpcConversation[] = response.getConversationsList();
+      const detailedConversations = await Promise.all(conversations.map(async (grpcConv) => {
+        const members = await getConversationMembers(grpcConv.getId());
+        const messages = await getMessages(grpcConv.getId());
+        return {
+          id: grpcConv.getId(),
+          name: grpcConv.getTitle(),
+          avatarUrl: grpcConv.getAvatarUrl(),
+          isGroup: grpcConv.getType() === 2,
+          members,
+          messages,
+          unreadCount: grpcConv.getUnreadCount(),
+        };
+      }));
+
+      resolve(detailedConversations);
+    });
+  });
+}
+
+export async function getConversation(id: string): Promise<Conversation> {
+    return new Promise((resolve, reject) => {
+        const request = new GetConversationRequest();
+        request.setId(id);
+        conversationClient.getConversation(request, async (error: any, response: any) => {
+            if (error) {
+                return reject(error);
+            }
+            const grpcConv = response.getConversation();
+            const members = await getConversationMembers(grpcConv.getId());
+            const messages = await getMessages(grpcConv.getId());
+            resolve({
+                id: grpcConv.getId(),
+                name: grpcConv.getTitle(),
+                avatarUrl: grpcConv.getAvatarUrl(),
+                isGroup: grpcConv.getType() === 2,
+                members,
+                messages,
+                unreadCount: grpcConv.getUnreadCount(),
+            });
+        });
+    });
+}
+
+async function getConversationMembers(conversationId: string): Promise<User[]> {
+  return new Promise((resolve, reject) => {
+    const request = new ListParticipantsRequest();
+    request.setConversationId(conversationId);
+    conversationClient.listParticipants(request, async (error: any, response: any) => {
+      if (error) {
+        return reject(error);
+      }
+      const participants: GrpcParticipant[] = response.getParticipantsList();
+      const users = await Promise.all(participants.map(p => getUser(p.getUserId())));
+      resolve(users);
+    });
+  });
+}
+
+export async function getMessages(conversationId: string): Promise<Message[]> {
+    return new Promise((resolve, reject) => {
+        const request = new GetConversationMessagesRequest();
+        request.setConversationId(conversationId);
+        messagingClient.getConversationMessages(request, async (error: any, response: any) => {
+            if (error) {
+                return reject(error);
+            }
+            const grpcMessages: GrpcMessage[] = response.getMessagesList();
+            const messages = await Promise.all(grpcMessages.map(async (grpcMsg) => {
+                const sender = await getUser(grpcMsg.getSender());
+                return {
+                    id: grpcMsg.getId(),
+                    text: grpcMsg.getTextContent(),
+                    timestamp: new Date(grpcMsg.getCreatedAt()!.getSeconds() * 1000),
+                    sender,
+                    isMe: false, // This will be set in the component
+                    type: 'text', // This will need to be mapped
+                };
+            }));
+            resolve(messages);
+        });
+    });
+}
+
+export async function getCurrentUser(token: string): Promise<User> {
+    return new Promise((resolve, reject) => {
+        const request = new VerifyTokenRequest();
+        request.setToken(token);
+        authClient.verifyToken(request, (error: any, response: any) => {
+            if (error) {
+                return reject(error);
+            }
+            resolve({
+                id: response.getUserId(),
+                name: response.getFullName(),
+                avatarUrl: '', // Not available in verify token response
+                status: 'online',
+            });
+        });
+    });
 }
