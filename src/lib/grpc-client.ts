@@ -113,6 +113,21 @@ export async function getConversation(id: string): Promise<Conversation> {
     });
 }
 
+export async function sendMessage(payload: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const request = new SendMessageRequest();
+        request.setConversationId(payload.conversationId);
+        request.setSender(payload.senderId);
+        request.setText(payload.text);
+        messagingClient.sendMessage(request, (error: any, response: any) => {
+            if (error) {
+                return reject(error);
+            }
+            resolve(response.toObject());
+        });
+    });
+}
+
 async function getConversationMembers(conversationId: string): Promise<User[]> {
   return new Promise((resolve, reject) => {
     const request = new ListParticipantsRequest();

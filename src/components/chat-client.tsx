@@ -3,8 +3,37 @@
 import * as React from "react";
 import { ConversationList } from "@/components/conversation-list";
 import { MessageView } from "@/components/message-view";
-import { getConversations, getCurrentUser, sendMessage } from "@/lib/grpc-client";
 import type { Conversation, Message, SendMessagePayload, User } from "@/lib/types";
+
+async function fetchUser(token: string): Promise<User> {
+    const response = await fetch(`/api/user?token=${token}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch user');
+    }
+    return response.json();
+}
+
+async function fetchConversations(userId: string): Promise<Conversation[]> {
+    const response = await fetch(`/api/conversations?userId=${userId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch conversations');
+    }
+    return response.json();
+}
+
+async function postMessage(payload: SendMessagePayload): Promise<any> {
+    const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to send message');
+    }
+    return response.json();
+}
 
 export function ChatClient() {
   const [user, setUser] = React.useState<User | null>(null);
@@ -15,9 +44,9 @@ export function ChatClient() {
     async function fetchData() {
       // Hardcoded for now
       const authToken = "your_auth_token";
-      const currentUser = await getCurrentUser(authToken);
+      const currentUser = await fetchUser(authToken);
       setUser(currentUser);
-      const userConversations = await getConversations(currentUser.id);
+      const userConversations = await fetchConversations(currentUser.id);
       setConversations(userConversations);
       if (userConversations.length > 0) {
         setSelectedConversationId(userConversations[0].id);
@@ -61,7 +90,7 @@ export function ChatClient() {
 
     setConversations(newConversations);
 
-    await sendMessage({
+    await postMessage({
         conversationId: selectedConversation.id,
         senderId: user.id,
         ...payload,
